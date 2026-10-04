@@ -6,7 +6,7 @@
 /*   By: dgajowni <dgajowni@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/10/03 16:23:38 by dgajowni          #+#    #+#             */
-/*   Updated: 2026/10/03 17:18:29 by dgajowni         ###   ########.fr       */
+/*   Updated: 2026/10/04 16:44:23 by dgajowni         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,7 +14,7 @@
 
 static int isdigit(char c)
 {
-    return (c > 47 && c < 58);
+    return (c >= '0' && c <= '9');
 }
 
 static int isint(char *str)

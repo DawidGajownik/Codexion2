@@ -6,50 +6,77 @@
 /*   By: dgajowni <dgajowni@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/10/03 14:24:36 by dgajowni          #+#    #+#             */
-/*   Updated: 2026/10/03 18:10:46 by dgajowni         ###   ########.fr       */
+/*   Updated: 2026/10/04 19:22:04 by dgajowni         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "codexion.h"
 
-long get_timestamp()
-{
-    struct timeval tv;
-
-    gettimeofday(&tv, NULL);
-    return (tv.tv_sec*1000+tv.tv_usec/1000);
+void* hello(void* arg) {
+    printf("Coder nr = %d\n", *(int*)arg);
+    return NULL;
 }
 
-void print_args(char **argv)
+t_params* set_params(char **argv)
 {
-    printf("number_of_coders               %s\n", argv[1]);
-    printf("time_to_burnout                %s\n", argv[2]);
-    printf("time_to_compile                %s\n", argv[3]);
-    printf("time_to_debug                  %s\n", argv[4]);
-    printf("time_to_refactor               %s\n", argv[5]);
-    printf("number_of_compiles_required    %s\n", argv[6]);
-    printf("dongle_cooldown                %s\n", argv[7]);
-    printf("scheduler                      %s\n", argv[8]);
+    t_params *params;
+
+    params = malloc(sizeof(t_params));
+    params->number_of_coders = atoi(argv[1]);
+    params->time_to_burnout = atoi(argv[2]);
+    params->time_to_compile = atoi(argv[3]);
+    params->time_to_debug = atoi(argv[4]);
+    params->time_to_refactor = atoi(argv[5]);
+    params->number_of_compiles_required = atoi(argv[6]);
+    params->dongle_cooldown = atoi(argv[7]);
+    params->scheduler = argv[8];
+
+    return params;
+}
+
+t_coder** create_coders(t_params *params)
+{
+    int counter;
+    t_coder **coder;
+
+    coder = malloc(sizeof(t_coder*) * params->number_of_coders);
+    counter = 0;
+    while (counter < params->number_of_coders)
+    {
+        coder[counter] = malloc(sizeof(t_coder));
+        coder[counter]->id = counter+1;
+        pthread_create(&(coder[counter]->thread), NULL, hello, &coder[counter]->id);
+        counter++;
+    }
+    counter = 0;
+    while (counter < params->number_of_coders)
+    {
+        pthread_join(coder[counter++]->thread, NULL);
+    }
+    counter = 0;
+    while (counter < params->number_of_coders)
+        free(coder[counter++]);
+    free(coder);
+    return coder;
 }
 
 int main(int argc, char **argv)
 {
     long timestart;
-    long last_time;
-    int c;
+    int zero;
+    t_params *params;
+    t_coder **coder;
 
-    c = 1;
+    if (!args_valid(argc, argv))
+        return(0);
+
+    params = set_params(argv);
+    coder = create_coders(params);
+    zero = 0;
     timestart = get_timestamp();
-    last_time = timestart;
-    printf("Valid = %d\n", args_valid(argc, argv));
-    print_args(argv);
-    printf("Timestamp                      %ld\n", timestart);
-    while (c < argc-1)
-    {
-        usleep(1000*atoi(argv[c]));
-        printf("%ld\n", get_timestamp() - last_time);
-        last_time = get_timestamp();
-        c++;
-    }
+
+    //checkers(argc, argv, timestart);
+    free(params);
+
     return (0);
 }

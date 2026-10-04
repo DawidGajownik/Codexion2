@@ -4,7 +4,9 @@ CC      = cc
 CFLAGS  = -Wall -Wextra -Werror -pthread
 
 SRCS    = 	codexion.c \
-			args_validator.c
+			args_validator.c \
+			time.c \
+			checkers.c
 
 OBJS    = $(SRCS:.c=.o)
 
