@@ -1,41 +1,31 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   codexion.c                                         :+:      :+:    :+:   */
+/*   free.c                                             :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: dgajowni <dgajowni@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/10/03 14:24:36 by dgajowni          #+#    #+#             */
-/*   Updated: 2026/10/10 17:34:31 by dgajowni         ###   ########.fr       */
+/*   Created: 2026/10/10 11:17:35 by dgajowni          #+#    #+#             */
+/*   Updated: 2026/10/10 16:08:30 by dgajowni         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "codexion.h"
 
-void start(t_args *args)
+void free_all(t_args *args)
 {
-    t_coder **coder;
+    int counter;
     t_params *params;
-    
+    t_coder **coder;
+
     params = args->params;
-    coder = malloc(sizeof(t_coder*) * params->number_of_coders);
-    args->coder = coder;
-    threads_start(args);
-    threads_finnish(args);
-}
-
-int main(int argc, char **argv)
-{
-    t_args *args;
-
-    if (!args_valid(argc, argv))
-        return(0);
-
-    args = set_args(argv);
-    start(args);
-    free_all(args);
-    //checkers(argc, argv, timestart);
-
-
-    return (0);
+    coder = args->coder;
+    counter = 0;
+    while (counter < params->number_of_coders)
+        free(coder[counter++]);
+    free(coder);
+    free(args->params);
+    free(args->dongle);
+    free(args->mutex);
+    free(args);
 }
