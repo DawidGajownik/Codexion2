@@ -6,7 +6,7 @@
 /*   By: dgajowni <dgajowni@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/10/10 11:20:22 by dgajowni          #+#    #+#             */
-/*   Updated: 2026/10/10 17:33:29 by dgajowni         ###   ########.fr       */
+/*   Updated: 2026/10/11 18:25:55 by dgajowni         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -39,25 +39,53 @@ void lock_mutexes(t_coder *coder)
     long time;
 
     args = coder->args;
-    if (coder->dongle_l->free == 1 && coder->dongle_r->free == 1)
-    {
-        pthread_mutex_lock(coder->dongle_l->mutex);
-        coder->dongle_l->free = 0;
-        time = get_timestamp() - args->timestart;
-        printf("%ld %d has taken l dongle %d\n", time, coder->id, coder->dongle_l->id);
-        pthread_mutex_lock(coder->dongle_r->mutex);
-        coder->dongle_r->free = 0;
-        time = get_timestamp() - args->timestart;
-        printf("%ld %d has taken r dongle %d\n", time, coder->id, coder->dongle_r->id);
-    }
+    pthread_mutex_lock(&args->arbiter_mutex);
+    while (!coder->dongle_l->free || !coder->dongle_r->free)
+        pthread_cond_wait(&args->dongles_cond, &args->arbiter_mutex);
+
+    /* Zarezerwuj oba naraz, zanim arbiter dopuści następny wątek. */
+    coder->dongle_l->free = 0;
+    coder->dongle_r->free = 0;
+    pthread_mutex_unlock(&args->arbiter_mutex);
+    time = get_timestamp() - args->timestart;
+
+    pthread_mutex_lock(coder->dongle_l->mutex);
+    pthread_mutex_lock(coder->dongle_r->mutex);
+    printf("%ld %d has taken l dongle %d\n", time, coder->id, coder->dongle_l->id);
+    printf("%ld %d has taken r dongle %d\n", time, coder->id, coder->dongle_r->id);
+    
+    // if (coder->dongle_l->free == 1 && coder->dongle_r->free == 1)
+    // {
+    //     pthread_mutex_lock(coder->dongle_l->mutex);
+    //     coder->dongle_l->free = 0;
+    //     time = get_timestamp() - args->timestart;
+    //     printf("%ld %d has taken l dongle %d\n", time, coder->id, coder->dongle_l->id);
+    //     pthread_mutex_lock(coder->dongle_r->mutex);
+    //     coder->dongle_r->free = 0;
+    //     time = get_timestamp() - args->timestart;
+    //     printf("%ld %d has taken r dongle %d\n", time, coder->id, coder->dongle_r->id);
+    // }
 }
 
 void unlock_dongles(t_coder *coder)
 {
-    pthread_mutex_unlock(coder->dongle_l->mutex);
-    coder->dongle_l->free = 1;
+    t_args *args;
+
+    args = coder->args;
+
     pthread_mutex_unlock(coder->dongle_r->mutex);
+    pthread_mutex_unlock(coder->dongle_l->mutex);
+
+    pthread_mutex_lock(&args->arbiter_mutex);
+    coder->dongle_l->free = 1;
     coder->dongle_r->free = 1;
+    pthread_cond_broadcast(&args->dongles_cond);
+    pthread_mutex_unlock(&args->arbiter_mutex);
+
+    // pthread_mutex_unlock(coder->dongle_l->mutex);
+    // coder->dongle_l->free = 1;
+    // pthread_mutex_unlock(coder->dongle_r->mutex);
+    // coder->dongle_r->free = 1;
 }
 
 void compile(t_coder *coder)
@@ -85,7 +113,7 @@ void debug(t_coder *coder)
 
     args = coder->args;
     time = get_timestamp() - args->timestart;
-    //printf("%ld %d is debugging\n", time, coder->id);
+    printf("%ld %d is debugging\n", time, coder->id);
     usleep(args->params->time_to_debug*1000);
 }
 
@@ -96,7 +124,7 @@ void refractor(t_coder *coder)
 
     args = coder->args;
     time = get_timestamp() - args->timestart;
-    //printf("%ld %d is refractoring\n", time, coder->id);
+    printf("%ld %d is refractoring\n", time, coder->id);
     usleep(args->params->time_to_refactor*1000);
 }
 

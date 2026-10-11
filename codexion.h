@@ -6,7 +6,7 @@
 /*   By: dgajowni <dgajowni@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/10/03 16:23:42 by dgajowni          #+#    #+#             */
-/*   Updated: 2026/10/10 17:32:15 by dgajowni         ###   ########.fr       */
+/*   Updated: 2026/10/11 18:30:55 by dgajowni         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -38,6 +38,7 @@ typedef struct dongle
 {
 	int id;
 	int free;
+	pthread_cond_t cond;
 	pthread_mutex_t *mutex;
 }	t_dongle;
 
@@ -60,8 +61,9 @@ typedef struct s_args
 	t_coder	**coder;
 	t_dongle *dongle;
 	pthread_mutex_t *mutex;
-	pthread_mutex_t *mutex_ckecker;
 	long timestart;
+	pthread_mutex_t arbiter_mutex;
+	pthread_cond_t  dongles_cond;
 }	t_args;
 
 void    threads_start(t_args *args);
