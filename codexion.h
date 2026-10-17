@@ -6,7 +6,7 @@
 /*   By: dgajowni <dgajowni@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/10/03 16:23:42 by dgajowni          #+#    #+#             */
-/*   Updated: 2026/10/11 18:30:55 by dgajowni         ###   ########.fr       */
+/*   Updated: 2026/10/17 13:34:48 by dgajowni         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -38,6 +38,7 @@ typedef struct dongle
 {
 	int id;
 	int free;
+	long	locktime;
 	pthread_cond_t cond;
 	pthread_mutex_t *mutex;
 }	t_dongle;
