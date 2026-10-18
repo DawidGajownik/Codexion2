@@ -16,7 +16,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <pthread.h>
-
+#include <time.h>
 
 
 
@@ -65,8 +65,11 @@ typedef struct s_args
 	long timestart;
 	pthread_mutex_t arbiter_mutex;
 	pthread_cond_t  dongles_cond;
+	pthread_t       monitor_thread;
+    int             stop;
 }	t_args;
 
+void    *monitor_routine(void *arg);
 void    threads_start(t_args *args);
 void    threads_finnish(t_args *args);
 long    get_timestamp();

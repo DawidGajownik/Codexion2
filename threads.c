@@ -51,6 +51,7 @@ void    init_dongles(t_args *args)
         dongle[counter].id = counter+1;
         pthread_cond_init(&(dongle[counter].cond), NULL);
         dongle[counter].free = 1;
+        dongle[counter].locktime = get_timestamp();
         dongle[counter].mutex = &(mutex[counter]);
         counter++;
     }
@@ -69,7 +70,18 @@ void    threads_start(t_args *args)
     params = args->params;
     malloc_coders(args);
     init_dongles(args);
+    /* BEGIN: Set one simulation start time and initialize burnout deadlines. */
     args->timestart = get_timestamp();
+    args->stop = 0;
+    counter = 0;
+    while (counter < params->number_of_coders)
+    {
+        args->coder[counter]->last_comp = args->timestart;
+        counter++;
+    }
+    /* END: Set one simulation start time and initialize burnout deadlines. */
+    counter = 0;
+    pthread_create(&args->monitor_thread, NULL, monitor_routine, args);
     while (counter < params->number_of_coders)
     {
         pthread_create(&(coder[counter]->thread), NULL, routine, coder[counter]);
@@ -88,4 +100,5 @@ void    threads_finnish(t_args *args)
     params = args->params;
     while (counter < params->number_of_coders)
         pthread_join(coder[counter++]->thread, NULL);
+    pthread_join(args->monitor_thread, NULL);
 }

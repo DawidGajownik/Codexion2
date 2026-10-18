@@ -12,7 +12,7 @@
 
 #include "codexion.h"
 
-static int isdigit(char c)
+static int is_digit(char c)
 {
     return (c >= '0' && c <= '9');
 }
@@ -23,7 +23,7 @@ static int isint(char *str)
 
     c = 0;
     while (str[c])
-        if (!isdigit(str[c++]))
+        if (!is_digit(str[c++]))
             return (0);
     return (1);
 }
