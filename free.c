@@ -6,7 +6,7 @@
 /*   By: dgajowni <dgajowni@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/10/10 11:17:35 by dgajowni          #+#    #+#             */
-/*   Updated: 2026/10/11 18:22:01 by dgajowni         ###   ########.fr       */
+/*   Updated: 2026/10/24 14:29:38 by dgajowni         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,5 +27,6 @@ void free_all(t_args *args)
     free(args->params);
     free(args->dongle);
     free(args->mutex);
+    free(args->requests);
     free(args);
 }

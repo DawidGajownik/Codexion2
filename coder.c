@@ -6,7 +6,7 @@
 /*   By: dgajowni <dgajowni@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/10/10 11:20:22 by dgajowni          #+#    #+#             */
-/*   Updated: 2026/10/17 13:52:20 by dgajowni         ###   ########.fr       */
+/*   Updated: 2026/10/24 19:32:24 by dgajowni         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -117,58 +117,213 @@ void get_deadline(t_coder *coder, struct timespec *deadline)
     deadline->tv_nsec = (ready_ms % 1000) * 1000000L;
 }
 
-int lock_mutexes(t_coder *coder)
+int up(t_request *req, int i)
+{
+    t_request temp;
+
+    temp = req[i];
+    req[i] = req[(i - 1) / 2];
+    req[(i - 1) / 2] = temp;
+    return (i - 1) / 2;
+}
+
+int should_be_upper(t_args *args, t_request *req, int i)
+{
+    if (args->params->scheduler == FIFO)
+        return (req[i].arrival_seq < req[(i - 1) / 2].arrival_seq);
+    if (req[i].deadline != req[(i - 1) / 2].deadline)
+        return (req[i].deadline < req[(i - 1) / 2].deadline);
+    return (req[i].coder->id < req[(i - 1) / 2].coder->id);
+}
+
+int should_be_downer(t_args *args, t_request *child, t_request *parent)
+{
+    if (args->params->scheduler == FIFO)
+        return (parent->arrival_seq > child->arrival_seq);
+    if (parent->deadline != child->deadline)
+        return (parent->deadline > child->deadline);
+    return (parent->coder->id > child->coder->id);
+}
+
+int add_request(t_coder *coder)
 {
     t_args *args;
+    int i;
+    t_request *req;
+
+    args = coder->args;
+    req = args->requests;
+    i = args->request_count;
+    if (i >= args->request_capacity)
+        return (0);
+    req[i].arrival_seq = args->next_arrival_seq++;
+    req[i].coder = coder;
+    req[i].deadline = coder->last_comp + args->params->time_to_burnout;
+    args->request_count++;
+    coder->request_state = REQUEST_PENDING;
+
+    while (i > 0)
+    {
+        if (should_be_upper(args, req, i))
+            i = up(req, i);
+        else
+            break;
+    }
+    return (1);
+}
+
+int swap(t_args *args, int i, int best)
+{
+    t_request temp;
+
+    temp = args->requests[i];
+    args->requests[i] = args->requests[best];
+    args->requests[best] = temp;
+    return (best);
+}
+
+void repair_tree(t_args *args)
+{
+    int best;
+    int left;
+    int right;
+    int i;
+
+    i = 0;
+    while (1)
+    {
+        left = 2 * i + 1;
+        right = 2 * i + 2;
+        if (left >= args->request_count)
+            break;
+        best = left;
+        if (right < args->request_count
+            && should_be_downer(args, &args->requests[right],
+                &args->requests[left]))
+            best = right;
+        if (!should_be_downer(args, &args->requests[best],
+                &args->requests[i]))
+            break;
+        i = swap(args, i, best);
+    }
+}
+
+void remove_root(t_args *args)
+{
+    if (args->request_count == 0)
+        return;
+    args->request_count--;
+    if (args->request_count == 0)
+        return;
+    args->requests[0] = args->requests[args->request_count];
+}
+
+void dispatch_locked(t_args *args)
+{
+    t_request req;
+    t_coder *coder;
     long time;
+
+    if (args->stop || args->request_count == 0)
+        return;
+    req = args->requests[0];
+    coder = req.coder;
+    if (!coder->dongle_l->free || !coder->dongle_r->free || !cool_enough(coder))
+        return;
+    coder->dongle_l->free = 0;
+    coder->dongle_r->free = 0;
+    pthread_mutex_lock(coder->dongle_l->mutex);
+    pthread_mutex_lock(coder->dongle_r->mutex);
+    time = get_timestamp() - args->timestart;
+    printf("%ld %d has taken l dongle %d, locktime = %ld, now = %ld, cooldown = %d, diff = %ld\n", time, coder->id, coder->dongle_l->id, coder->dongle_l->locktime, get_timestamp(), args->params->dongle_cooldown, get_timestamp()-coder->dongle_l->locktime);
+    printf("%ld %d has taken r dongle %d, locktime = %ld, now = %ld, cooldown = %d, diff = %ld\n", time, coder->id, coder->dongle_r->id, coder->dongle_r->locktime, get_timestamp(), args->params->dongle_cooldown, get_timestamp()-coder->dongle_r->locktime);
+    coder->request_state = REQUEST_GRANTED;
+    remove_root(args);
+    repair_tree(args);
+    pthread_cond_broadcast(&args->dongles_cond);
+}
+
+int lock_mutexes(t_coder *coder)
+{
+    t_args          *args;
+    t_coder         *head_coder;
     struct timespec deadline;
 
     args = coder->args;
     pthread_mutex_lock(&args->arbiter_mutex);
-    while (1)
+
+    if (coder->request_state == REQUEST_NONE && !add_request(coder))
     {
-        /* BEGIN: Stop waiting when the monitor ends the simulation. */
-        if (args->stop)
-        {
-            pthread_mutex_unlock(&args->arbiter_mutex);
-            return (0);
-        }
-        /* END: Stop waiting when the monitor ends the simulation. */
-        if (coder->dongle_l->free && coder->dongle_r->free
-            && cool_enough(coder))
+        pthread_mutex_unlock(&args->arbiter_mutex);
+        return (0);
+    }
+
+    while (!args->stop && coder->request_state != REQUEST_GRANTED)
+    {
+        dispatch_locked(args);
+
+        if (args->stop || coder->request_state == REQUEST_GRANTED)
             break;
-        if (!coder->dongle_l->free || !coder->dongle_r->free)
+
+        /*
+         * dispatch_locked próbuje przyznać zasoby requestowi
+         * z korzenia kopca, więc czekamy na warunek dotyczący
+         * właśnie tego codera.
+         */
+        head_coder = args->requests[0].coder;
+
+        if (!head_coder->dongle_l->free || !head_coder->dongle_r->free)
+        {
             pthread_cond_wait(&args->dongles_cond, &args->arbiter_mutex);
+        }
         else
         {
-            get_deadline(coder, &deadline);
-            pthread_cond_timedwait(&args->dongles_cond, &args->arbiter_mutex, &deadline);
+            get_deadline(head_coder, &deadline);
+            pthread_cond_timedwait(
+                &args->dongles_cond, &args->arbiter_mutex, &deadline);
         }
     }
 
-    coder->dongle_l->free = 0;
-    coder->dongle_r->free = 0;
+    if (args->stop && coder->request_state != REQUEST_GRANTED)
+    {
+        pthread_mutex_unlock(&args->arbiter_mutex);
+        return (0);
+    }
+
+    coder->request_state = REQUEST_NONE;
     pthread_mutex_unlock(&args->arbiter_mutex);
-    time = get_timestamp() - args->timestart;
-
-    pthread_mutex_lock(coder->dongle_l->mutex);
-    pthread_mutex_lock(coder->dongle_r->mutex);
-    printf("%ld %d has taken l dongle %d, locktime = %ld, now = %ld, cooldown = %d, diff = %ld\n", time, coder->id, coder->dongle_l->id, coder->dongle_l->locktime, get_timestamp(), args->params->dongle_cooldown, get_timestamp()-coder->dongle_l->locktime);
-    printf("%ld %d has taken r dongle %d, locktime = %ld, now = %ld, cooldown = %d, diff = %ld\n", time, coder->id, coder->dongle_r->id, coder->dongle_r->locktime, get_timestamp(), args->params->dongle_cooldown, get_timestamp()-coder->dongle_r->locktime);
     return (1);
-
-    // if (coder->dongle_l->free == 1 && coder->dongle_r->free == 1)
-    // {
-    //     pthread_mutex_lock(coder->dongle_l->mutex);
-    //     coder->dongle_l->free = 0;
-    //     time = get_timestamp() - args->timestart;
-    //     printf("%ld %d has taken l dongle %d\n", time, coder->id, coder->dongle_l->id);
-    //     pthread_mutex_lock(coder->dongle_r->mutex);
-    //     coder->dongle_r->free = 0;
-    //     time = get_timestamp() - args->timestart;
-    //     printf("%ld %d has taken r dongle %d\n", time, coder->id, coder->dongle_r->id);
-    // }
 }
+
+// int lock_mutexes(t_coder *coder)
+// {
+//     t_args *args;
+
+//     args = coder->args;
+//     pthread_mutex_lock(&args->arbiter_mutex);
+
+//     if (coder->request_state == REQUEST_NONE)
+//         if (!add_request(coder))
+//         {
+//             pthread_mutex_unlock(&args->arbiter_mutex);
+//             return (0);
+//         }
+//     dispatch_locked(args);
+//     while (!args->stop && coder->request_state != REQUEST_GRANTED)
+//     {
+//         pthread_cond_wait(&args->dongles_cond, &args->arbiter_mutex);
+//         dispatch_locked(args);   
+//     }
+//     if (args->stop && coder->request_state != REQUEST_GRANTED)
+//     {
+//         pthread_mutex_unlock(&args->arbiter_mutex);
+//         return (0);
+//     }
+//     coder->request_state = REQUEST_NONE;
+//     pthread_mutex_unlock(&args->arbiter_mutex);
+
+//     return(1);
+// }
 
 void unlock_dongles(t_coder *coder)
 {
@@ -202,19 +357,15 @@ int compile(t_coder *coder)
     if (args->timestart == 0)
         args->timestart = get_timestamp();
     match_mutexes(coder);
-    /* BEGIN: Propagate simulation stop instead of continuing to compile. */
     if (!lock_mutexes(coder))
         return (0);
-    /* END: Propagate simulation stop instead of continuing to compile. */
     pthread_mutex_lock(&args->arbiter_mutex);
-    /* BEGIN: Do not start a compile after the monitor has stopped the run. */
     if (args->stop)
     {
         pthread_mutex_unlock(&args->arbiter_mutex);
         unlock_dongles(coder);
         return (0);
     }
-    /* END: Do not start a compile after the monitor has stopped the run. */
     coder->last_comp = get_timestamp();
     pthread_mutex_unlock(&args->arbiter_mutex);
     time = coder->last_comp - args->timestart;
@@ -225,10 +376,9 @@ int compile(t_coder *coder)
     pthread_mutex_lock(&args->arbiter_mutex);
     coder->compiles_done++;
     pthread_mutex_unlock(&args->arbiter_mutex);
-    /* BEGIN: Report that this compile completed successfully. */
     return (1);
-    /* END: Report that this compile completed successfully. */
 }
+
 
 void debug(t_coder *coder)
 {

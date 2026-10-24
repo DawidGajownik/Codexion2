@@ -6,7 +6,7 @@
 /*   By: dgajowni <dgajowni@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/10/10 11:19:11 by dgajowni          #+#    #+#             */
-/*   Updated: 2026/10/11 18:22:53 by dgajowni         ###   ########.fr       */
+/*   Updated: 2026/10/24 19:35:42 by dgajowni         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,6 +28,7 @@ void malloc_coders(t_args *args)
         coder[counter]->last_comp = 0;
         coder[counter]->args = args;
         coder[counter]->compiles_done = 0;
+        coder[counter]->request_state = REQUEST_NONE;
         counter++;
     }
 }
@@ -51,7 +52,7 @@ void    init_dongles(t_args *args)
         dongle[counter].id = counter+1;
         pthread_cond_init(&(dongle[counter].cond), NULL);
         dongle[counter].free = 1;
-        dongle[counter].locktime = get_timestamp();
+        dongle[counter].locktime = get_timestamp() - params->dongle_cooldown;
         dongle[counter].mutex = &(mutex[counter]);
         counter++;
     }

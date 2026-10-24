@@ -6,7 +6,7 @@
 /*   By: dgajowni <dgajowni@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/10/03 16:23:42 by dgajowni          #+#    #+#             */
-/*   Updated: 2026/10/17 13:34:48 by dgajowni         ###   ########.fr       */
+/*   Updated: 2026/10/24 14:58:52 by dgajowni         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,6 +19,18 @@
 #include <time.h>
 
 
+typedef enum e_request_state
+{
+    REQUEST_NONE,
+    REQUEST_PENDING,
+    REQUEST_GRANTED
+}   t_request_state;
+
+typedef enum e_scheduler
+{
+	FIFO,
+	EDF
+}	t_scheduler;
 
 
 typedef struct s_params
@@ -30,7 +42,7 @@ typedef struct s_params
 	int				time_to_refactor;
 	int				number_of_compiles_required;
 	int				dongle_cooldown;
-	char*           scheduler;
+	t_scheduler     scheduler;
 }	t_params;
 
 
@@ -53,7 +65,15 @@ typedef struct s_coder
 	void			*args;
 	t_dongle		*dongle_l;
 	t_dongle		*dongle_r;
+	t_request_state request_state;
 }	t_coder;
+
+typedef struct s_request
+{
+    t_coder             *coder;
+    unsigned long long  arrival_seq;
+    long                deadline;
+}   t_request;
 
 
 typedef struct s_args
@@ -67,6 +87,10 @@ typedef struct s_args
 	pthread_cond_t  dongles_cond;
 	pthread_t       monitor_thread;
     int             stop;
+	t_request           *requests;
+	int                 request_count;
+	int                 request_capacity;
+	unsigned long long  next_arrival_seq;
 }	t_args;
 
 void    *monitor_routine(void *arg);
