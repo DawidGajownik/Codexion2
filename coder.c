@@ -6,7 +6,7 @@
 /*   By: dgajowni <dgajowni@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/10/10 11:20:22 by dgajowni          #+#    #+#             */
-/*   Updated: 2026/10/24 19:32:24 by dgajowni         ###   ########.fr       */
+/*   Updated: 2026/10/25 16:53:54 by dgajowni         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -136,13 +136,13 @@ int should_be_upper(t_args *args, t_request *req, int i)
     return (req[i].coder->id < req[(i - 1) / 2].coder->id);
 }
 
-int should_be_downer(t_args *args, t_request *child, t_request *parent)
+int should_be_downer(t_args *args, t_request *a, t_request *b)
 {
     if (args->params->scheduler == FIFO)
-        return (parent->arrival_seq > child->arrival_seq);
-    if (parent->deadline != child->deadline)
-        return (parent->deadline > child->deadline);
-    return (parent->coder->id > child->coder->id);
+        return (b->arrival_seq > a->arrival_seq);
+    if (b->deadline != a->deadline)
+        return (b->deadline > a->deadline);
+    return (b->coder->id > a->coder->id);
 }
 
 int add_request(t_coder *coder)
@@ -218,30 +218,169 @@ void remove_root(t_args *args)
     args->requests[0] = args->requests[args->request_count];
 }
 
+static void sift_down_from(t_args *args, int i)
+{
+    int best;
+    int left;
+    int right;
+
+    while (1)
+    {
+        left = 2 * i + 1;
+        right = 2 * i + 2;
+        if (left >= args->request_count)
+            break;
+        best = left;
+        if (right < args->request_count
+            && should_be_downer(args, &args->requests[right],
+                &args->requests[left]))
+            best = right;
+        if (!should_be_downer(args, &args->requests[best],
+                &args->requests[i]))
+            break;
+        i = swap(args, i, best);
+    }
+}
+
+static int share_dongle(t_coder *a, t_coder *b)
+{
+    return (a->dongle_l == b->dongle_l
+        || a->dongle_l == b->dongle_r
+        || a->dongle_r == b->dongle_l
+        || a->dongle_r == b->dongle_r);
+}
+
+static int blocked_by_higher_priority(t_args *args, int candidate)
+{
+    int     i;
+    t_coder *candidate_coder;
+    t_coder *waiting_coder;
+
+    candidate_coder = args->requests[candidate].coder;
+    i = 0;
+    while (i < args->request_count)
+    {
+        if (i != candidate
+            && should_be_downer(args, &args->requests[i],
+                &args->requests[candidate]))
+        {
+            waiting_coder = args->requests[i].coder;
+            if (share_dongle(candidate_coder, waiting_coder))
+                return (1);
+        }
+        i++;
+    }
+    return (0);
+}
+
+static void remove_at(t_args *args, int index)
+{
+    int last;
+
+    if (index < 0 || index >= args->request_count)
+        return;
+    last = args->request_count - 1;
+    args->request_count--;
+    if (index == last)
+        return;
+    args->requests[index] = args->requests[last];
+    if (index > 0 && should_be_upper(args, args->requests, index))
+    {
+        while (index > 0 && should_be_upper(args, args->requests, index))
+            index = up(args->requests, index);
+    }
+    else
+        sift_down_from(args, index);
+}
+
 void dispatch_locked(t_args *args)
 {
-    t_request req;
+    int     i;
+    int     best;
     t_coder *coder;
-    long time;
+    long    now;
+    long    time;
 
-    if (args->stop || args->request_count == 0)
-        return;
-    req = args->requests[0];
-    coder = req.coder;
-    if (!coder->dongle_l->free || !coder->dongle_r->free || !cool_enough(coder))
-        return;
-    coder->dongle_l->free = 0;
-    coder->dongle_r->free = 0;
-    pthread_mutex_lock(coder->dongle_l->mutex);
-    pthread_mutex_lock(coder->dongle_r->mutex);
-    time = get_timestamp() - args->timestart;
-    printf("%ld %d has taken l dongle %d, locktime = %ld, now = %ld, cooldown = %d, diff = %ld\n", time, coder->id, coder->dongle_l->id, coder->dongle_l->locktime, get_timestamp(), args->params->dongle_cooldown, get_timestamp()-coder->dongle_l->locktime);
-    printf("%ld %d has taken r dongle %d, locktime = %ld, now = %ld, cooldown = %d, diff = %ld\n", time, coder->id, coder->dongle_r->id, coder->dongle_r->locktime, get_timestamp(), args->params->dongle_cooldown, get_timestamp()-coder->dongle_r->locktime);
-    coder->request_state = REQUEST_GRANTED;
-    remove_root(args);
-    repair_tree(args);
-    pthread_cond_broadcast(&args->dongles_cond);
+    while (!args->stop && args->request_count > 0)
+    {
+        best = -1;
+        i = 0;
+        while (i < args->request_count)
+        {
+            coder = args->requests[i].coder;
+            if (coder->dongle_l->free && coder->dongle_r->free
+                && cool_enough(coder)
+                && !blocked_by_higher_priority(args, i))
+            {
+                if (best == -1
+                    || should_be_downer(args, &args->requests[i],
+                        &args->requests[best]))
+                    best = i;
+            }
+            i++;
+        }
+        if (best == -1)
+            return;
+
+        coder = args->requests[best].coder;
+        coder->dongle_l->free = 0;
+        coder->dongle_r->free = 0;
+        pthread_mutex_lock(coder->dongle_l->mutex);
+        pthread_mutex_lock(coder->dongle_r->mutex);
+
+        now = get_timestamp();
+        time = now - args->timestart;
+        printf("%ld %d has taken l dongle %d\n",
+            time, coder->id, coder->dongle_l->id);
+        printf("%ld %d has taken r dongle %d\n",
+            time, coder->id, coder->dongle_r->id);
+
+        coder->request_state = REQUEST_GRANTED;
+        remove_at(args, best);
+        pthread_cond_broadcast(&args->dongles_cond);
+    }
 }
+
+// void dispatch_locked(t_args *args)
+// {
+//     t_request req;
+//     t_coder *coder;
+//     long time;
+//     int i;
+//     int best;
+
+//     i = 0;
+//     best = -1;
+//     if (args->stop || args->request_count == 0)
+//         return;
+//     while (i < args->request_count)
+//     {
+//         req = args->requests[i];
+//         coder = req.coder;
+//         if (coder->dongle_l->free && coder->dongle_r->free
+//             && cool_enough(coder))
+//         {
+//             if (best == -1
+//                 || should_be_downer(args, &args->requests[i],
+//                 &args->requests[best]))
+//             best = i;
+//         }
+//         i++;
+//     }
+//     if (!coder->dongle_l->free || !coder->dongle_r->free || !cool_enough(coder))
+//         return;
+//     coder->dongle_l->free = 0;
+//     coder->dongle_r->free = 0;
+//     pthread_mutex_lock(coder->dongle_l->mutex);
+//     pthread_mutex_lock(coder->dongle_r->mutex);
+//     time = get_timestamp() - args->timestart;
+//     printf("%ld %d has taken l dongle %d, locktime = %ld, now = %ld, cooldown = %d, diff = %ld\n", time, coder->id, coder->dongle_l->id, coder->dongle_l->locktime, get_timestamp(), args->params->dongle_cooldown, get_timestamp()-coder->dongle_l->locktime);
+//     printf("%ld %d has taken r dongle %d, locktime = %ld, now = %ld, cooldown = %d, diff = %ld\n", time, coder->id, coder->dongle_r->id, coder->dongle_r->locktime, get_timestamp(), args->params->dongle_cooldown, get_timestamp()-coder->dongle_r->locktime);
+//     coder->request_state = REQUEST_GRANTED;
+//     remove_root(args);
+//     repair_tree(args);
+//     pthread_cond_broadcast(&args->dongles_cond);
+// }
 
 int lock_mutexes(t_coder *coder)
 {
@@ -341,11 +480,6 @@ void unlock_dongles(t_coder *coder)
     coder->dongle_r->locktime = get_timestamp();
     pthread_cond_broadcast(&args->dongles_cond);
     pthread_mutex_unlock(&args->arbiter_mutex);
-
-    // pthread_mutex_unlock(coder->dongle_l->mutex);
-    // coder->dongle_l->free = 1;
-    // pthread_mutex_unlock(coder->dongle_r->mutex);
-    // coder->dongle_r->free = 1;
 }
 
 int compile(t_coder *coder)
