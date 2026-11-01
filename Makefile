@@ -6,10 +6,10 @@ CFLAGS  = -Wall -Wextra -Werror -pthread
 SRCS    = 	codexion.c \
 			args_validator.c \
 			time.c \
-			setters.c \
+			initialization.c \
 			free.c \
 			threads.c \
-			coder.c \
+			dongle_request.c \
 			dongles.c \
 			monitor.c \
 			priority_queue.c \
