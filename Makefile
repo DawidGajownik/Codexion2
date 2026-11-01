@@ -6,11 +6,19 @@ CFLAGS  = -Wall -Wextra -Werror -pthread
 SRCS    = 	codexion.c \
 			args_validator.c \
 			time.c \
-			checkers.c \
 			setters.c \
 			free.c \
 			threads.c \
-			coder.c
+			coder.c \
+			dongles.c \
+			monitor.c \
+			priority_queue.c \
+			heap_remove.c \
+			dispatch.c \
+			compile.c \
+			coder_phases.c \
+			routine.c \
+			cooldown.c
 
 OBJS    = $(SRCS:.c=.o)
 
