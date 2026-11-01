@@ -6,7 +6,7 @@
 /*   By: dgajowni <dgajowni@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/10/03 16:23:38 by dgajowni          #+#    #+#             */
-/*   Updated: 2026/11/01 18:33:19 by dgajowni         ###   ########.fr       */
+/*   Updated: 2026/11/01 18:50:22 by dgajowni         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -56,6 +56,8 @@ int	args_valid(int argc, char **argv)
 		while (i < argc - 1)
 			if (!isint(argv[i++]))
 				return (0);
+	if (atoi(argv[1]) == 0)
+		return (0);
 	if (!scheduler_arg_valid(argv[i]))
 		return (0);
 	return (1);

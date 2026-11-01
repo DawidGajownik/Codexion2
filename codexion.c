@@ -6,7 +6,7 @@
 /*   By: dgajowni <dgajowni@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/10/03 14:24:36 by dgajowni          #+#    #+#             */
-/*   Updated: 2026/11/01 18:26:58 by dgajowni         ###   ########.fr       */
+/*   Updated: 2026/11/01 18:52:57 by dgajowni         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,7 +29,7 @@ int	main(int argc, char **argv)
 	t_args	*args;
 
 	if (!args_valid(argc, argv))
-		return (0);
+		return (-1);
 	args = create_args(argv);
 	start_simulation(args);
 	free_all(args);

@@ -47,7 +47,7 @@ int	compile(t_coder *coder)
 	printf("%ld %d is compiling %d\n", elapsed, coder->id,
 		coder->compiles_done + 1);
 	pthread_mutex_unlock(&args->output_mutex);
-	usleep(args->params->time_to_compile * 1000);
+	sleep_ms(args->params->time_to_compile);
 	unlock_dongles(coder);
 	pthread_mutex_lock(&args->arbiter_mutex);
 	coder->compiles_done++;

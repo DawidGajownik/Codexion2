@@ -123,3 +123,4 @@ int			compile(t_coder *coder);
 void		debug(t_coder *coder);
 void		refactor(t_coder *coder);
 long		get_timestamp(void);
+void		sleep_ms(int milliseconds);

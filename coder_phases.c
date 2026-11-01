@@ -22,7 +22,7 @@ void	debug(t_coder *coder)
 	pthread_mutex_lock(&args->output_mutex);
 	printf("%ld %d is debugging\n", elapsed, coder->id);
 	pthread_mutex_unlock(&args->output_mutex);
-	usleep(args->params->time_to_debug * 1000);
+	sleep_ms(args->params->time_to_debug);
 }
 
 void	refactor(t_coder *coder)
@@ -35,5 +35,5 @@ void	refactor(t_coder *coder)
 	pthread_mutex_lock(&args->output_mutex);
 	printf("%ld %d is refactoring\n", elapsed, coder->id);
 	pthread_mutex_unlock(&args->output_mutex);
-	usleep(args->params->time_to_refactor * 1000);
+	sleep_ms(args->params->time_to_refactor);
 }

@@ -78,10 +78,9 @@ static void	grant_request(t_args *args, int index)
 	now = get_timestamp();
 	elapsed = now - args->timestart;
 	pthread_mutex_lock(&args->output_mutex);
-	printf("%ld %d has taken l dongle %d\n", elapsed, coder->id,
-		coder->dongle_l->id);
-	printf("%ld %d has taken r dongle %d\n", elapsed, coder->id,
-		coder->dongle_r->id);
+	printf("%ld %d has taken a dongle\n", elapsed, coder->id);
+	if (coder->dongle_r != coder->dongle_l)
+		printf("%ld %d has taken a dongle\n", elapsed, coder->id);
 	pthread_mutex_unlock(&args->output_mutex);
 	coder->request_state = REQUEST_GRANTED;
 	remove_request_at(args, index);
