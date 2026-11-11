@@ -4,12 +4,8 @@
 
 ## Description
 
-Codexion is a C concurrency simulation built with POSIX threads. Coder threads
-share a circular set of USB dongles and compete to compile before their burnout
-deadlines. Each coder repeatedly compiles, debugs, and refactors. The program
-supports FIFO and EDF arbitration for dongle requests, dongle cooldown periods,
-and a monitor thread that stops the simulation when a coder burns out or every
-coder has completed the required number of compiles.
+Codexion is a project designed to help users understand how multithreading and thread synchronization work.
+Coders represent threads that must take turns performing tasks such as compiling, debugging, and refactoring. Mutexes are represented by dongles, which the coders require in order to compile. The program employs FIFO (First-In, First-Out) and EDF (Earliest Deadline First) scheduling. The simulation concludes once all coders have completed the required number of compilations, or if any one of them experiences burnout.
 
 ## Instructions
 
@@ -90,15 +86,13 @@ debugging, refactoring, and burnout. `make clean` removes object files;
 
 ## Resources
 
-- POSIX threads and synchronization: [pthreads(7)](https://man7.org/linux/man-pages/man7/pthreads.7.html)
-- POSIX mutex functions: [pthread_mutex_lock(3)](https://man7.org/linux/man-pages/man3/pthread_mutex_lock.3p.html)
-- POSIX condition variables: [pthread_cond_wait(3)](https://man7.org/linux/man-pages/man3/pthread_cond_wait.3p.html)
-- Valgrind user manual: [Valgrind documentation](https://valgrind.org/docs/manual/manual.html)
+- "Talking" with Copilot
 - The project specification: [`en.subject.pdf`](./en.subject.pdf)
 
 ### AI usage
 
-AI assistance was used to review the implementation against the project
-specification, investigate concurrency diagnostics from Helgrind and memory
-diagnostics from Memcheck, and prepare this documentation. The implementation
-and test results should be verified by the project author.
+AI support was used to quickly review the implementation, explain the
+project rules, and help validate the concurrency logic against the subject.
+It was also used to cross-check scheduler behavior, burnout detection, and
+thread-safety assumptions before running the final verification tests.
+

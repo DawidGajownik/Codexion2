@@ -67,13 +67,9 @@ void	*monitor_routine(void *arg)
 	{
 		usleep(1000);
 		pthread_mutex_lock(&args->arbiter_mutex);
-		if (all_coders_done(args))
-		{
-			finish_monitor(args);
-			return (NULL);
-		}
 		now = get_timestamp();
-		if (check_burnout(args, now))
+		if (all_coders_done(args)
+			|| check_burnout(args, now))
 		{
 			finish_monitor(args);
 			return (NULL);
