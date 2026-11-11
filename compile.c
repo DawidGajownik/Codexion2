@@ -6,7 +6,7 @@
 /*   By: dgajowni <dgajowni@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/10/31 12:32:00 by dgajowni          #+#    #+#             */
-/*   Updated: 2026/11/01 18:24:42 by dgajowni         ###   ########.fr       */
+/*   Updated: 2026/11/11 20:47:48 by dgajowni         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -44,8 +44,7 @@ int	compile(t_coder *coder)
 	}
 	lock_dongles(coder);
 	pthread_mutex_lock(&args->output_mutex);
-	printf("%ld %d is compiling %d\n", elapsed, coder->id,
-		coder->compiles_done + 1);
+	printf("%ld %d is compiling\n", elapsed, coder->id);
 	pthread_mutex_unlock(&args->output_mutex);
 	sleep_ms(args->params->time_to_compile);
 	unlock_dongles(coder);

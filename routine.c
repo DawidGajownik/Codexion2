@@ -6,25 +6,11 @@
 /*   By: dgajowni <dgajowni@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/10/31 12:32:00 by dgajowni          #+#    #+#             */
-/*   Updated: 2026/10/31 12:32:00 by dgajowni         ###   ########.fr       */
+/*   Updated: 2026/11/11 21:21:53 by dgajowni         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "codexion.h"
-
-static int	should_stop_after_compile(t_coder *coder)
-{
-	t_args	*args;
-	int		stop;
-
-	args = coder->args;
-	pthread_mutex_lock(&args->arbiter_mutex);
-	stop = args->stop
-		|| coder->compiles_done
-		>= args->params->number_of_compiles_required;
-	pthread_mutex_unlock(&args->arbiter_mutex);
-	return (stop);
-}
 
 static int	simulation_stopped(t_args *args)
 {
@@ -45,7 +31,7 @@ void	*routine(void *arg)
 	args = coder->args;
 	while (1)
 	{
-		if (!compile(coder) || should_stop_after_compile(coder))
+		if (!compile(coder) || simulation_stopped(args))
 			break ;
 		debug(coder);
 		if (simulation_stopped(args))

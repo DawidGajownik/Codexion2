@@ -49,10 +49,11 @@ debugging, refactoring, and burnout. `make clean` removes object files;
   order. The arbiter is released before a coder locks dongle mutexes, and
   dongle mutexes are released before the arbiter is reacquired. This avoids
   circular wait, one of the conditions required for deadlock.
-- **Starvation prevention:** Requests are ordered by the selected policy.
-  FIFO uses request arrival order. EDF uses
-  `last_compile_start + time_to_burnout`, with coder ID as a deterministic
-  tie-breaker.
+- **Scheduling:** The scheduler chooses by policy among requests whose two
+  dongles are both available and out of cooldown. FIFO uses request arrival
+  order. EDF uses `last_compile_start + time_to_burnout`, with coder ID as a
+  deterministic tie-breaker. A request waiting for an unavailable dongle
+  does not reserve its other dongle and block a ready request.
 - **Dongle cooldown:** Released dongles remain unavailable until their
   cooldown interval has elapsed. Timed condition-variable waits allow the
   scheduler to reconsider requests when a cooldown expires.
@@ -95,4 +96,3 @@ AI support was used to quickly review the implementation, explain the
 project rules, and help validate the concurrency logic against the subject.
 It was also used to cross-check scheduler behavior, burnout detection, and
 thread-safety assumptions before running the final verification tests.
-
